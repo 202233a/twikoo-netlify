@@ -1,5 +1,21 @@
 const twikoo = require('twikoo-vercel')
 
+function getHeader(headers, name) {
+  return headers[name] || headers[name.toLowerCase()] || headers[name.toUpperCase()]
+}
+
+function getHeaderDebug(headers) {
+  const names = [
+    'cf-connecting-ip',
+    'x-real-ip',
+    'x-forwarded-for',
+    'x-nf-client-connection-ip',
+    'x-client-ip',
+    'forwarded',
+  ]
+  return Object.fromEntries(names.map(name => [name, getHeader(headers, name) || '']))
+}
+
 exports.handler = async function (event) {
   process.env.VERCEL_URL = event.rawUrl.replace(/^https?:\/\//, '')
   process.env.TWIKOO_IP_HEADERS = JSON.stringify([
@@ -10,6 +26,20 @@ exports.handler = async function (event) {
   ])
 
   const headers = event.headers || {}
+
+  if (event.queryStringParameters?.['debug-ip'] === 'zery') {
+    return {
+      statusCode: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store',
+      },
+      body: JSON.stringify({
+        ipHeaders: JSON.parse(process.env.TWIKOO_IP_HEADERS),
+        received: getHeaderDebug(headers),
+      }, null, 2),
+    }
+  }
 
   const result = {
     statusCode: 204,
